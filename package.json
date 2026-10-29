@@ -1,0 +1,83 @@
+{
+  "name": "agent-workspace",
+  "displayName": "Agent Workspace",
+  "description": "Scope AI coding tasks across multiple Git repositories and review the results in VS Code.",
+  "version": "0.1.10",
+  "publisher": "agentworkspace-local",
+  "private": true,
+  "license": "MIT",
+  "engines": { "vscode": "^1.90.0" },
+  "capabilities": {
+    "untrustedWorkspaces": { "supported": true, "description": "仅在工作区内读取 Git 状态和用户明确选入的约定文件；任务数据保存在本地 Workspace State。" }
+  },
+  "categories": ["Other", "SCM Providers"],
+  "icon": "media/logo-128.png",
+  "main": "./src/extension.js",
+  "activationEvents": ["onStartupFinished", "onView:agentWorkspace.repositories", "onView:agentWorkspace.tasks", "onView:agentWorkspace.presets", "onCommand:agentWorkspace.configureExplorerIcon"],
+  "contributes": {
+    "iconThemes": [{ "id": "agent-workspace-roots", "label": "Agent Workspace 根目录图标", "path": "./media/theme/current.json" }],
+    "viewsContainers": {
+      "activitybar": [{ "id": "agentWorkspace", "title": "Agent Workspace", "icon": "media/activity.svg" }]
+    },
+    "views": {
+      "agentWorkspace": [
+        { "id": "agentWorkspace.repositories", "name": "仓库总览" },
+        { "id": "agentWorkspace.tasks", "name": "任务工作台" },
+        { "id": "agentWorkspace.presets", "name": "任务预设" }
+      ]
+    },
+    "commands": [
+      { "command": "agentWorkspace.refresh", "title": "Agent Workspace: 刷新" },
+      { "command": "agentWorkspace.configureExplorerIcon", "title": "Agent Workspace: 设置 Explorer 根目录图标", "icon": "$(symbol-color)" },
+      { "command": "agentWorkspace.openGuide", "title": "Agent Workspace: 打开使用说明" },
+      { "command": "agentWorkspace.createTask", "title": "Agent Workspace: 新建任务", "icon": "$(add)" },
+      { "command": "agentWorkspace.editTask", "title": "Agent Workspace: 编辑当前任务" },
+      { "command": "agentWorkspace.executeTask", "title": "Agent Workspace: 执行当前任务", "icon": "$(play)" },
+      { "command": "agentWorkspace.openCopilotSessions", "title": "Agent Workspace: 打开 Copilot 会话列表" },
+      { "command": "agentWorkspace.showExecutionDetails", "title": "Agent Workspace: 查看执行记录" },
+      { "command": "agentWorkspace.stopExecutionTracking", "title": "Agent Workspace: 停止记录改动" },
+      { "command": "agentWorkspace.openObservedChange", "title": "Agent Workspace: 打开记录中的文件" },
+      { "command": "agentWorkspace.selectTask", "title": "Agent Workspace: 切换任务" },
+      { "command": "agentWorkspace.deleteTask", "title": "Agent Workspace: 删除当前任务" },
+      { "command": "agentWorkspace.setScope", "title": "Agent Workspace: 设置仓库范围" },
+      { "command": "agentWorkspace.addDirectory", "title": "Agent Workspace: 添加范围目录" },
+      { "command": "agentWorkspace.removeDirectory", "title": "Agent Workspace: 移除范围目录" },
+      { "command": "agentWorkspace.collectConventions", "title": "Agent Workspace: 选择项目约定" },
+      { "command": "agentWorkspace.copyContext", "title": "Agent Workspace: 复制上下文包", "icon": "$(copy)" },
+      { "command": "agentWorkspace.exportJson", "title": "Agent Workspace: 导出任务 JSON" },
+      { "command": "agentWorkspace.savePreset", "title": "Agent Workspace: 保存任务预设", "icon": "$(save)" },
+      { "command": "agentWorkspace.applyPreset", "title": "Agent Workspace: 使用任务预设" },
+      { "command": "agentWorkspace.applyPresetRoots", "title": "Agent Workspace: 将预设应用到工作区根目录" },
+      { "command": "agentWorkspace.deletePreset", "title": "Agent Workspace: 删除任务预设" },
+      { "command": "agentWorkspace.openFolder", "title": "Agent Workspace: 在资源管理器中显示" },
+      { "command": "agentWorkspace.openTerminal", "title": "Agent Workspace: 在仓库打开终端" },
+      { "command": "agentWorkspace.openScm", "title": "Agent Workspace: 打开源代码管理" },
+      { "command": "agentWorkspace.openChange", "title": "Agent Workspace: 打开 Git 差异" },
+      { "command": "agentWorkspace.rebaseline", "title": "Agent Workspace: 重建 Git 基线" }
+    ],
+    "menus": {
+      "explorer/context": [
+        { "command": "agentWorkspace.configureExplorerIcon", "when": "explorerResourceIsRoot", "group": "navigation" }
+      ],
+      "view/title": [
+        { "command": "agentWorkspace.refresh", "when": "view == agentWorkspace.repositories", "group": "navigation" },
+        { "command": "agentWorkspace.createTask", "when": "view == agentWorkspace.tasks", "group": "navigation" },
+        { "command": "agentWorkspace.executeTask", "when": "view == agentWorkspace.tasks", "group": "navigation@2" },
+        { "command": "agentWorkspace.copyContext", "when": "view == agentWorkspace.tasks", "group": "navigation@3" },
+        { "command": "agentWorkspace.savePreset", "when": "view == agentWorkspace.presets", "group": "navigation" }
+      ],
+      "view/item/context": [
+        { "command": "agentWorkspace.configureExplorerIcon", "when": "viewItem == awRepository", "group": "navigation" },
+        { "command": "agentWorkspace.openFolder", "when": "viewItem == awRepository", "group": "inline" },
+        { "command": "agentWorkspace.openTerminal", "when": "viewItem == awRepository", "group": "inline@2" },
+        { "command": "agentWorkspace.openScm", "when": "viewItem == awRepository", "group": "inline@3" },
+        { "command": "agentWorkspace.openChange", "when": "viewItem == awChange", "group": "inline" },
+        { "command": "agentWorkspace.applyPreset", "when": "viewItem == awPreset", "group": "inline" },
+        { "command": "agentWorkspace.applyPresetRoots", "when": "viewItem == awPreset", "group": "navigation" },
+        { "command": "agentWorkspace.deletePreset", "when": "viewItem == awPreset", "group": "inline@2" },
+        { "command": "agentWorkspace.removeDirectory", "when": "viewItem == awDirectory", "group": "inline" }
+      ]
+    }
+  },
+  "scripts": { "test": "node --test test/*.test.js", "check": "node --check src/extension.js && node --check src/rootIcons.js && node --check src/core.js && node --check src/taskForm.js && node --check src/handoff.js && node --check src/executionHistory.js && npm test", "package": "python3 scripts/package_vsix.py" }
+}

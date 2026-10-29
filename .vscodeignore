@@ -1,0 +1,7 @@
+prd/**
+test/**
+.git/**
+.gitignore
+.vscodeignore
+*.vsix
+node_modules/**

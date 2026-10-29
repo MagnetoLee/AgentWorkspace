@@ -1,0 +1,5 @@
+/prd/
+node_modules/
+*.vsix
+.DS_Store
+media/theme/images/custom/

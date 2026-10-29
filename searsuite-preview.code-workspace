@@ -1,0 +1,11 @@
+{
+  "folders": [
+    { "name": "Core", "path": "../searsuiteworkspace/searsuite" },
+    { "name": "Pro", "path": "../searsuiteworkspace/searsuite-pro" },
+    { "name": "Cloud", "path": "../searsuiteworkspace/searsuite-cloud" },
+    { "name": "Test", "path": "../searsuiteworkspace/searsuite-test" }
+  ],
+  "settings": {
+    "workbench.iconTheme": "agent-workspace-roots"
+  }
+}
