@@ -31,7 +31,7 @@ test('baseline distinguishes existing, new and uncertain changes', () => {
     assert.equal(classifyChange({ key: 'a.js', uri, digest: 'old', status: 'modified' }, baseline, scope, base, false).kind, 'existing');
     assert.equal(classifyChange({ key: 'a.js', uri, digest: 'new', status: 'modified' }, baseline, scope, base, false).kind, 'uncertain');
     assert.equal(classifyChange({ key: 'b.js', uri, digest: 'new', status: 'modified' }, baseline, scope, base, false).kind, 'new');
-    assert.equal(classifyChange({ key: 'b.js', uri, digest: 'new', status: 'modified' }, baseline, { mode: 'read' }, base, false).warning.includes('超出'), true);
+    assert.equal(classifyChange({ key: 'b.js', uri, digest: 'new', status: 'modified' }, baseline, { mode: 'read' }, base, false).warning.includes('Outside'), true);
     assert.equal(classifyChange({ key: 'b.js', uri, digest: 'new', status: 'modified' }, baseline, scope, base, true).kind, 'invalid');
   } finally { fs.rmSync(base, { recursive: true, force: true }); }
 });

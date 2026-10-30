@@ -34,14 +34,14 @@ function isWithinScope(scope, root, candidate) {
 }
 
 function classifyChange(change, baseline, scope, root, headChanged) {
-  if (headChanged) return { kind: 'invalid', warning: '分支或 HEAD 已变化，需重建基线' };
+  if (headChanged) return { kind: 'invalid', warning: 'Branch or HEAD changed; rebuild the baseline' };
   const prior = baseline?.files?.[change.key];
   let kind = 'new';
   if (prior) kind = prior.digest === change.digest && prior.status === change.status ? 'existing' : 'uncertain';
   const inScope = isWithinScope(scope || { mode: 'none' }, root, change.uri.fsPath);
   return {
     kind,
-    warning: !inScope || scope?.mode !== 'write' ? '超出声明的可改范围（仅提示，未阻止写入）' : undefined
+    warning: !inScope || scope?.mode !== 'write' ? 'Outside the declared writable scope (warning only; writes are not blocked)' : undefined
   };
 }
 

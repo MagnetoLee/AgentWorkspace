@@ -3,9 +3,9 @@
 const crypto = require('node:crypto');
 
 const ICONS = [
-  ['_folder', '文件夹'], ['_git', 'Git'], ['_github', 'GitHub'],
-  ['_image', '图片'], ['_notebook', '笔记本'], ['_project', '项目'],
-  ['_settings', '设置'], ['_pipeline', '流水线']
+  ['_folder', 'Folder'], ['_git', 'Git'], ['_github', 'GitHub'],
+  ['_image', 'Image'], ['_notebook', 'Notebook'], ['_project', 'Project'],
+  ['_settings', 'Settings'], ['_pipeline', 'Pipeline']
 ];
 
 function escapeXml(value) {

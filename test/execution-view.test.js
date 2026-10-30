@@ -6,8 +6,8 @@ const Module = require('node:module');
 
 test('task tree shows a saved execution and its Copilot sessions action', async () => {
   const providers = {};
-  const execution = { id: 'run-1', title: '公式修复', content: '修复公式', startedAt: '2026-10-30T10:00:00Z', endedAt: null, status: 'sent', scopes: {}, conventions: [], baseline: {}, observed: {} };
-  const task = { id: 'task-1', title: '公式修复', content: '修复公式', scopes: {}, conventions: [], executions: [execution] };
+  const execution = { id: 'run-1', title: 'Formula fix', content: 'Fix the formula', startedAt: '2026-10-30T10:00:00Z', endedAt: null, status: 'sent', scopes: {}, conventions: [], baseline: {}, observed: {} };
+  const task = { id: 'task-1', title: 'Formula fix', content: 'Fix the formula', scopes: {}, conventions: [], executions: [execution] };
   const state = { 'agentWorkspace.tasks.v1': [task], 'agentWorkspace.activeTask.v1': task.id, 'agentWorkspace.presets.v1': [] };
   const disposable = { dispose() {} };
   const vscode = {

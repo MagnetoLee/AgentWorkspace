@@ -15,7 +15,7 @@ const ACTIVE_KEY = 'agentWorkspace.activeTask.v1';
 const PRESETS_KEY = 'agentWorkspace.presets.v1';
 const APPEARANCE_KEY = 'agentWorkspace.repositoryAppearance.v1';
 const EXCLUDE = '**/{.git,node_modules,dist,build,out,coverage}/**';
-const MODE_TEXT = { none: '未纳入', read: '只读', write: '可改' };
+const MODE_TEXT = { none: 'Excluded', read: 'Read only', write: 'Writable' };
 
 function folders() { return vscode.workspace.workspaceFolders || []; }
 function rootKey(folder) { return folder.uri.toString(); }
@@ -30,17 +30,17 @@ function relativeLabel(root, uri) { return path.relative(root.fsPath, uri.fsPath
 function taskContent(task) { return task?.content ?? task?.goal ?? ''; }
 function contentSummary(task) { return taskContent(task).split(/\r?\n/)[0].slice(0, 100); }
 function renderContext(data) {
-  const lines = [`# ${data.title}`, '', '## 任务内容', '', data.content, '', '## 仓库与范围'];
+  const lines = [`# ${data.title}`, '', '## Task content', '', data.content, '', '## Repositories and scope'];
   for (const root of data.roots) {
-    lines.push(`- ${root.name} — ${MODE_TEXT[root.scope.mode]} — ${root.path} — 分支：${root.branch || '未知'}`);
-    if (root.scope.directories?.length) lines.push(...root.scope.directories.map(directory => `  - 目录：${directory}`));
+    lines.push(`- ${root.name} — ${MODE_TEXT[root.scope.mode]} — ${root.path} — Branch: ${root.branch || 'Unknown'}`);
+    if (root.scope.directories?.length) lines.push(...root.scope.directories.map(directory => `  - Directory: ${directory}`));
   }
-  lines.push('', '范围由开发者声明；实际读写权限由智能体及运行环境决定。', '', '## 项目约定');
-  if (!data.conventions.length) lines.push('未选择约定文件。');
+  lines.push('', 'The developer declares the scope. Actual read and write permissions depend on the agent and runtime.', '', '## Project instructions');
+  if (!data.conventions.length) lines.push('No instruction files selected.');
   for (const file of data.conventions) {
-    lines.push('', `### ${file.path}`, `来源：${file.source}`);
+    lines.push('', `### ${file.path}`, `Source: ${file.source}`);
     if (file.error) lines.push(file.error);
-    else lines.push('```text', file.content.replace(/```/g, '` ` `'), '```', file.truncated ? '（内容超过 32 KiB，已截断）' : '');
+    else lines.push('```text', file.content.replace(/```/g, '` ` `'), '```', file.truncated ? '(Content truncated at 32 KiB)' : '');
   }
   return lines.join('\n');
 }
@@ -141,7 +141,7 @@ class WorkspaceModel {
       ];
       this.watchRepositories();
     } catch (error) {
-      vscode.window.showWarningMessage(`Agent Workspace 无法读取内置 Git 扩展：${error.message}`);
+      vscode.window.showWarningMessage(`Agent Workspace could not access the built-in Git extension: ${error.message}`);
     }
   }
   watchRepositories() {
@@ -216,32 +216,32 @@ class WorkspaceModel {
     const folder = target?.folder || (target?.uri ? target : target?.scheme ? vscode.workspace.getWorkspaceFolder(target) : undefined) || await this.pickFolder();
     if (!folder?.uri) return;
     const selected = await vscode.window.showQuickPick([
-      { label: '上传图片', kind: 'image', description: 'PNG、JPEG、WebP 或 GIF，最大 2 MB' },
-      { label: '使用 emoji', kind: 'emoji', description: '为这个仓库单独设置' },
-      { label: '使用内置图标', kind: 'icon', description: '选择 VS Code 图标' },
-      { label: '恢复默认', kind: 'default' }
-    ], { title: `设置 ${shortName(folder)} 的显示图标` });
+      { label: 'Upload image', kind: 'image', description: 'PNG, JPEG, WebP, or GIF; maximum 2 MB' },
+      { label: 'Use emoji', kind: 'emoji', description: 'Set for this repository only' },
+      { label: 'Use built-in icon', kind: 'icon', description: 'Choose a VS Code icon' },
+      { label: 'Restore default', kind: 'default' }
+    ], { title: `Set display icon for ${shortName(folder)}` });
     if (!selected) return;
     let appearance;
     if (selected.kind === 'image') {
-      const files = await vscode.window.showOpenDialog({ title: `上传 ${shortName(folder)} 的图标图片`, canSelectFiles: true, canSelectFolders: false, canSelectMany: false, filters: { 图片: ['png', 'jpg', 'jpeg', 'webp', 'gif'] } });
+      const files = await vscode.window.showOpenDialog({ title: `Upload icon image for ${shortName(folder)}`, canSelectFiles: true, canSelectFolders: false, canSelectMany: false, filters: { Image: ['png', 'jpg', 'jpeg', 'webp', 'gif'] } });
       if (!files?.length) return;
       const source = files[0];
       const extension = path.extname(source.fsPath).toLowerCase();
-      if (!['.png', '.jpg', '.jpeg', '.webp', '.gif'].includes(extension)) return vscode.window.showErrorMessage('请选择 PNG、JPEG、WebP 或 GIF 图片。');
+      if (!['.png', '.jpg', '.jpeg', '.webp', '.gif'].includes(extension)) return vscode.window.showErrorMessage('Choose a PNG, JPEG, WebP, or GIF image.');
       const stat = await vscode.workspace.fs.stat(source);
-      if (stat.size > 2 * 1024 * 1024) return vscode.window.showErrorMessage('图片超过 2 MB，请选择更小的文件。');
+      if (stat.size > 2 * 1024 * 1024) return vscode.window.showErrorMessage('Image exceeds 2 MB. Choose a smaller file.');
       const iconsDir = vscode.Uri.joinPath(this.context.globalStorageUri, 'repository-icons');
       await vscode.workspace.fs.createDirectory(iconsDir);
       const destination = vscode.Uri.joinPath(iconsDir, `${crypto.randomUUID()}${extension}`);
       await vscode.workspace.fs.copy(source, destination, { overwrite: false });
       appearance = { kind: 'image', value: destination.toString() };
     } else if (selected.kind === 'emoji') {
-      const value = await vscode.window.showInputBox({ title: `${shortName(folder)} 的 emoji`, prompt: '输入一个 emoji，例如 🧪、☁️、💎', value: this.appearance(folder)?.kind === 'emoji' ? this.appearance(folder).value : '', validateInput: input => !input.trim() ? '请输入 emoji' : [...input.trim()].length > 16 ? '请只输入一个简短的 emoji' : undefined });
+      const value = await vscode.window.showInputBox({ title: `Emoji for ${shortName(folder)}`, prompt: 'Enter one emoji, such as 🧪, ☁️, or 💎', value: this.appearance(folder)?.kind === 'emoji' ? this.appearance(folder).value : '', validateInput: input => !input.trim() ? 'Enter an emoji' : [...input.trim()].length > 16 ? 'Enter one short emoji' : undefined });
       if (value === undefined) return;
       appearance = { kind: 'emoji', value: value.trim() };
     } else if (selected.kind === 'icon') {
-      const icon = await vscode.window.showQuickPick(ICONS.map(([value, label]) => ({ label, description: value, value })), { title: `${shortName(folder)} 的内置图标` });
+      const icon = await vscode.window.showQuickPick(ICONS.map(([value, label]) => ({ label, description: value, value })), { title: `Built-in icon for ${shortName(folder)}` });
       if (!icon) return;
       appearance = { kind: 'icon', value: icon.value };
     }
@@ -250,7 +250,7 @@ class WorkspaceModel {
     else delete this.repositoryAppearance[rootKey(folder)];
     await this.save();
     try { await this.updateExplorerIcons(true); }
-    catch (error) { vscode.window.showErrorMessage(`更新 Explorer 图标失败：${error.message}`); }
+    catch (error) { vscode.window.showErrorMessage(`Could not update Explorer icon: ${error.message}`); }
     if (previous?.kind === 'image' && previous.value !== appearance?.value) {
       try { await vscode.workspace.fs.delete(vscode.Uri.parse(previous.value)); } catch { /* old image may already be gone */ }
     }
@@ -307,7 +307,7 @@ class WorkspaceModel {
     this.openTaskForm(task);
   }
   openTaskForm(task, prefill) {
-    const panel = vscode.window.createWebviewPanel('agentWorkspace.taskForm', task ? `编辑任务：${task.title}` : '新建任务', vscode.ViewColumn.One, { enableScripts: true, retainContextWhenHidden: true });
+    const panel = vscode.window.createWebviewPanel('agentWorkspace.taskForm', task ? `Edit task: ${task.title}` : 'New Task', vscode.ViewColumn.One, { enableScripts: true, retainContextWhenHidden: true });
     const nonce = crypto.randomBytes(16).toString('base64');
     panel.webview.html = taskFormHtml({
       title: task?.title || prefill?.title || '',
@@ -322,12 +322,12 @@ class WorkspaceModel {
       try {
         const title = String(message.title || '').trim();
         const content = String(message.content || '').trim();
-        if (!title || !content) throw new Error('请填写标题和任务内容。');
+        if (!title || !content) throw new Error('Enter a title and task content.');
         const scopes = {};
         for (const folder of folders()) {
           const key = rootKey(folder);
           const mode = message.scopes?.[key];
-          if (!['none', 'read', 'write'].includes(mode)) throw new Error(`仓库范围无效：${shortName(folder)}`);
+          if (!['none', 'read', 'write'].includes(mode)) throw new Error(`Invalid repository scope: ${shortName(folder)}`);
           const previous = task?.scopes?.[key] || prefill?.scopes?.[key];
           scopes[key] = { mode, directories: mode === 'none' ? [] : [...(previous?.directories || [])] };
         }
@@ -342,7 +342,7 @@ class WorkspaceModel {
         }
         await this.save();
         panel.dispose();
-        vscode.window.showInformationMessage(`任务“${task.title}”已保存。`);
+        vscode.window.showInformationMessage(`Task “${task.title}” saved.`);
       } catch (error) {
         panel.webview.postMessage({ type: 'error', message: error.message });
       }
@@ -354,8 +354,8 @@ class WorkspaceModel {
     folder ||= await this.pickFolder();
     if (!folder) return;
     const choice = await vscode.window.showQuickPick([
-      { label: '可改', mode: 'write' }, { label: '只读', mode: 'read' }, { label: '未纳入', mode: 'none' }
-    ], { title: `${shortName(folder)} 的任务范围` });
+      { label: 'Writable', mode: 'write' }, { label: 'Read only', mode: 'read' }, { label: 'Excluded', mode: 'none' }
+    ], { title: `Task scope for ${shortName(folder)}` });
     if (!choice) return;
     const current = this.scope(task, folder);
     task.scopes[rootKey(folder)] = { mode: choice.mode, directories: choice.mode === 'none' ? [] : current.directories };
@@ -367,13 +367,13 @@ class WorkspaceModel {
     folder ||= await this.pickFolder();
     if (!folder) return;
     const scope = this.scope(task, folder);
-    if (scope.mode === 'none') return vscode.window.showWarningMessage('请先将该仓库设为只读或可改。');
-    if (folder.uri.scheme !== 'file') return vscode.window.showWarningMessage('目录范围目前需要本地文件工作区。');
-    const selected = await vscode.window.showOpenDialog({ title: `选择 ${shortName(folder)} 中的范围目录`, defaultUri: folder.uri, canSelectFolders: true, canSelectFiles: false, canSelectMany: false, openLabel: '加入范围' });
+    if (scope.mode === 'none') return vscode.window.showWarningMessage('Set this repository to Read only or Writable first.');
+    if (folder.uri.scheme !== 'file') return vscode.window.showWarningMessage('Directory scopes currently require a local file workspace.');
+    const selected = await vscode.window.showOpenDialog({ title: `Choose a scope directory in ${shortName(folder)}`, defaultUri: folder.uri, canSelectFolders: true, canSelectFiles: false, canSelectMany: false, openLabel: 'Add to scope' });
     if (!selected?.length) return;
     const rel = relativeInside(folder.uri.fsPath, selected[0].fsPath);
-    if (rel === null) return vscode.window.showErrorMessage('所选目录位于工作区根目录之外，无法加入任务范围。');
-    if (!rel) return vscode.window.showWarningMessage('已覆盖整仓库，无需添加根目录。');
+    if (rel === null) return vscode.window.showErrorMessage('The selected directory is outside the workspace root and cannot be added to the task scope.');
+    if (!rel) return vscode.window.showWarningMessage('The entire repository is already included; there is no need to add its root.');
     scope.directories = [...new Set([...(scope.directories || []), rel])];
     task.scopes[rootKey(folder)] = scope;
     await this.save();
@@ -396,11 +396,11 @@ class WorkspaceModel {
       for (const uri of uris) {
         if (!conventionInScope(scope, folder.uri.fsPath, uri)) continue;
         const key = uri.toString();
-        picks.push({ label: `${shortName(folder)}/${relativeLabel(folder.uri, uri)}`, description: '工作区文件', uri, key, picked: task.conventions.includes(key) });
+        picks.push({ label: `${shortName(folder)}/${relativeLabel(folder.uri, uri)}`, description: 'Workspace file', uri, key, picked: task.conventions.includes(key) });
       }
     }
-    if (!picks.length) return vscode.window.showInformationMessage('当前任务范围内未找到 AGENTS.md。');
-    const selected = await vscode.window.showQuickPick(picks, { title: '选择要纳入上下文包的项目约定', canPickMany: true });
+    if (!picks.length) return vscode.window.showInformationMessage('No AGENTS.md file was found within the current task scope.');
+    const selected = await vscode.window.showQuickPick(picks, { title: 'Select project instructions for the context package', canPickMany: true });
     if (!selected) return;
     task.conventions = selected.map(p => p.key);
     await this.save();
@@ -420,8 +420,8 @@ class WorkspaceModel {
       try {
         const bytes = await vscode.workspace.fs.readFile(uri);
         const max = 32768;
-        conventions.push({ path: uri.fsPath, source: '工作区文件', content: Buffer.from(bytes.subarray(0, max)).toString('utf8'), truncated: bytes.length > max });
-      } catch { conventions.push({ path: uri.fsPath, source: '工作区文件', error: '读取失败或文件已删除' }); }
+        conventions.push({ path: uri.fsPath, source: 'Workspace file', content: Buffer.from(bytes.subarray(0, max)).toString('utf8'), truncated: bytes.length > max });
+      } catch { conventions.push({ path: uri.fsPath, source: 'Workspace file', error: 'Could not read file or file was deleted' }); }
     }
     return { title: task.title, content: taskContent(task), createdAt: task.createdAt, roots, conventions };
   }
@@ -429,17 +429,17 @@ class WorkspaceModel {
     const data = await this.contextData();
     if (!data) return this.noTask();
     await vscode.env.clipboard.writeText(renderContext(data));
-    vscode.window.showInformationMessage('任务上下文包已复制到剪贴板。');
+    vscode.window.showInformationMessage('Task context copied to the clipboard.');
   }
   async executeTask() {
     const data = await this.contextData();
     if (!data) return this.noTask();
-    if (!vscode.workspace.isTrusted) return vscode.window.showWarningMessage('当前工作区处于受限模式，Copilot Agent 无法执行任务。请先在 VS Code 中信任工作区。');
+    if (!vscode.workspace.isTrusted) return vscode.window.showWarningMessage('This workspace is in Restricted Mode. Trust it in VS Code before running Copilot Agent.');
     const task = this.active();
     const baseline = await this.baseline();
     const startedAt = new Date().toISOString();
     try { await vscode.commands.executeCommand('workbench.action.chat.open', copilotAgentOptions(renderContext(data))); }
-    catch (error) { return vscode.window.showErrorMessage(`无法交给 Copilot Agent 执行：${error.message}。请确认已启用并登录 GitHub Copilot。`); }
+    catch (error) { return vscode.window.showErrorMessage(`Could not run the task with Copilot Agent: ${error.message}. Make sure GitHub Copilot is enabled and signed in.`); }
     try {
       await this.captureActiveExecutions();
       for (const candidate of this.tasks) for (const execution of candidate.executions || []) {
@@ -454,7 +454,7 @@ class WorkspaceModel {
       await this.save();
       await this.captureActiveExecutions();
     } catch (error) {
-      vscode.window.showErrorMessage(`任务已发送给 Copilot，但执行记录保存失败：${error.message}`);
+      vscode.window.showErrorMessage(`Task sent to Copilot, but the execution record could not be saved: ${error.message}`);
     }
   }
   async stopExecutionTracking(execution) {
@@ -462,22 +462,22 @@ class WorkspaceModel {
     await this.captureActiveExecutions();
     execution.endedAt = new Date().toISOString();
     await this.save();
-    vscode.window.showInformationMessage('已停止记录这次执行后的改动；这不会停止 Copilot。');
+    vscode.window.showInformationMessage('Stopped tracking changes for this execution. Copilot will continue running.');
   }
   async openCopilotSessions(execution) {
     await vscode.commands.executeCommand('workbench.action.chat.open');
     const time = execution ? new Date(execution.startedAt).toLocaleString() : '';
-    vscode.window.showInformationMessage(`请在 Copilot 会话列表中按“${execution?.title || '任务'}”和 ${time} 查找。若列表未显示，在聊天空白处右键选择 Show Sessions。`);
+    vscode.window.showInformationMessage(`Find “${execution?.title || 'Task'}” around ${time} in the Copilot session list. If the list is hidden, right-click empty space in Chat and select Show Sessions.`);
   }
   async showExecutionDetails(execution) {
     if (!execution) return;
-    const lines = [`# ${execution.title}`, '', `发送时间：${new Date(execution.startedAt).toLocaleString()}`, `状态：${execution.endedAt ? '已停止记录改动' : '正在观察改动（不代表 Copilot 仍在运行）'}`, '', '## 任务内容', '', execution.content, '', '## 仓库范围'];
+    const lines = [`# ${execution.title}`, '', `Sent at: ${new Date(execution.startedAt).toLocaleString()}`, `Status: ${execution.endedAt ? 'Change tracking stopped' : 'Tracking changes (Copilot may no longer be running)'}`, '', '## Task content', '', execution.content, '', '## Repository scope'];
     for (const folder of folders()) {
       const scope = execution.scopes[rootKey(folder)] || { mode: 'none', directories: [] };
-      lines.push(`- ${shortName(folder)}：${MODE_TEXT[scope.mode]}`);
+      lines.push(`- ${shortName(folder)}: ${MODE_TEXT[scope.mode]}`);
       for (const directory of scope.directories || []) lines.push(`  - ${directory}`);
     }
-    lines.push('', '## 约定文件', ...(execution.conventions.length ? execution.conventions.map(file => `- ${file}`) : ['未选择']), '', `观察到 ${observedCount(execution)} 个文件有改动。文件改动不保证全部由 Copilot 产生。`);
+    lines.push('', '## Instruction files', ...(execution.conventions.length ? execution.conventions.map(file => `- ${file}`) : ['None selected']), '', `Changes observed in ${observedCount(execution)} files. Some changes may have come from sources other than Copilot.`);
     const document = await vscode.workspace.openTextDocument({ language: 'markdown', content: lines.join('\n') });
     await vscode.window.showTextDocument(document, { preview: true });
   }
@@ -488,26 +488,26 @@ class WorkspaceModel {
       try { await vscode.commands.executeCommand('git.openChange', uri); return; } catch { /* use file fallback */ }
     }
     try { await vscode.commands.executeCommand('vscode.open', uri); }
-    catch { vscode.window.showWarningMessage('该文件当前不存在，历史记录只保留了路径和状态。'); }
+    catch { vscode.window.showWarningMessage('This file no longer exists. The record retains only its path and status.'); }
   }
   async exportJson() {
     const data = await this.contextData();
     if (!data) return this.noTask();
-    const uri = await vscode.window.showSaveDialog({ title: '导出任务 JSON', defaultUri: vscode.Uri.file(path.join(folders()[0]?.uri.fsPath || process.cwd(), 'agent-workspace-task.json')), filters: { JSON: ['json'] } });
+    const uri = await vscode.window.showSaveDialog({ title: 'Export Task JSON', defaultUri: vscode.Uri.file(path.join(folders()[0]?.uri.fsPath || process.cwd(), 'agent-workspace-task.json')), filters: { JSON: ['json'] } });
     if (!uri) return;
     await vscode.workspace.fs.writeFile(uri, Buffer.from(JSON.stringify(data, null, 2), 'utf8'));
-    vscode.window.showInformationMessage(`已导出任务：${uri.fsPath}`);
+    vscode.window.showInformationMessage(`Task exported: ${uri.fsPath}`);
   }
   async savePreset() {
     const task = this.active();
     if (!task) return this.noTask();
-    const name = await vscode.window.showInputBox({ title: '保存任务预设', prompt: '预设名称', value: task.title });
+    const name = await vscode.window.showInputBox({ title: 'Save Task Preset', prompt: 'Preset name', value: task.title });
     if (!name?.trim()) return;
     this.presets.push({ id: crypto.randomUUID(), name: name.trim(), content: taskContent(task), scopes: JSON.parse(JSON.stringify(task.scopes)) });
     await this.save();
   }
   async applyPreset(preset) {
-    preset ||= await vscode.window.showQuickPick(this.presets.map(p => ({ label: p.name, preset: p })), { title: '选择任务预设' }).then(x => x?.preset);
+    preset ||= await vscode.window.showQuickPick(this.presets.map(p => ({ label: p.name, preset: p })), { title: 'Select Task Preset' }).then(x => x?.preset);
     if (preset) this.createTask({ title: preset.name, content: taskContent(preset), scopes: preset.scopes });
   }
   async applyPresetRoots(preset) {
@@ -518,36 +518,36 @@ class WorkspaceModel {
       const uri = vscode.Uri.parse(key);
       try {
         const stat = await vscode.workspace.fs.stat(uri);
-        if (stat.type !== vscode.FileType.Directory) throw new Error('不是目录');
+        if (stat.type !== vscode.FileType.Directory) throw new Error('Not a directory');
       } catch {
-        return vscode.window.showErrorMessage(`预设根目录不存在或无法访问：${uri.fsPath}`);
+        return vscode.window.showErrorMessage(`Preset root does not exist or cannot be accessed: ${uri.fsPath}`);
       }
       desired.push({ uri });
     }
-    if (!desired.length) return vscode.window.showWarningMessage('这个预设未纳入任何仓库。');
-    const names = desired.map(entry => path.basename(entry.uri.fsPath)).join('、');
-    const answer = await vscode.window.showWarningMessage(`将当前工作区根目录调整为：${names}？`, { modal: true }, '应用到工作区');
-    if (answer !== '应用到工作区') return;
+    if (!desired.length) return vscode.window.showWarningMessage('This preset does not include any repositories.');
+    const names = desired.map(entry => path.basename(entry.uri.fsPath)).join(', ');
+    const answer = await vscode.window.showWarningMessage(`Change the current workspace roots to: ${names}?`, { modal: true }, 'Apply to Workspace');
+    if (answer !== 'Apply to Workspace') return;
     if (!vscode.workspace.updateWorkspaceFolders(0, folders().length, ...desired)) {
-      vscode.window.showErrorMessage('无法更新当前工作区根目录。');
+      vscode.window.showErrorMessage('Could not update the workspace roots.');
     }
   }
   async deletePreset(preset) {
     if (!preset) return;
-    const yes = await vscode.window.showWarningMessage(`删除预设“${preset.name}”？`, { modal: true }, '删除');
-    if (yes !== '删除') return;
+    const yes = await vscode.window.showWarningMessage(`Delete preset “${preset.name}”?`, { modal: true }, 'Delete');
+    if (yes !== 'Delete') return;
     this.presets = this.presets.filter(p => p.id !== preset.id);
     await this.save();
   }
   async selectTask() {
-    const pick = await vscode.window.showQuickPick(this.tasks.map(t => ({ label: t.title, description: contentSummary(t), id: t.id })), { title: '选择任务' });
+    const pick = await vscode.window.showQuickPick(this.tasks.map(t => ({ label: t.title, description: contentSummary(t), id: t.id })), { title: 'Select Task' });
     if (pick) { this.activeId = pick.id; await this.save(); }
   }
   async deleteTask() {
     const task = this.active();
     if (!task) return this.noTask();
-    const yes = await vscode.window.showWarningMessage(`删除任务“${task.title}”？`, { modal: true }, '删除');
-    if (yes !== '删除') return;
+    const yes = await vscode.window.showWarningMessage(`Delete task “${task.title}”?`, { modal: true }, 'Delete');
+    if (yes !== 'Delete') return;
     this.tasks = this.tasks.filter(t => t.id !== task.id);
     this.activeId = this.tasks.at(-1)?.id;
     await this.save();
@@ -557,13 +557,13 @@ class WorkspaceModel {
     if (!task) return this.noTask();
     task.baseline = await this.baseline();
     await this.save();
-    vscode.window.showInformationMessage('已重建任务 Git 基线。');
+    vscode.window.showInformationMessage('Task Git baseline rebuilt.');
   }
   async pickFolder() {
-    const pick = await vscode.window.showQuickPick(folders().map(folder => ({ label: shortName(folder), folder })), { title: '选择仓库' });
+    const pick = await vscode.window.showQuickPick(folders().map(folder => ({ label: shortName(folder), folder })), { title: 'Select Repository' });
     return pick?.folder;
   }
-  noTask() { vscode.window.showInformationMessage('请先创建任务。'); }
+  noTask() { vscode.window.showInformationMessage('Create a task first.'); }
   dispose() { clearTimeout(this.refreshTimer); this.gitSubscriptions.forEach(d => d.dispose()); this.emitter.dispose(); }
 }
 
@@ -572,29 +572,29 @@ class RepositoriesProvider {
   getTreeItem(node) { return node.item; }
   async getChildren(node) {
     if (node) return [];
-    if (!folders().length) return [{ item: simpleItem('请先打开一个工作区', '', 'folder') }];
+    if (!folders().length) return [{ item: simpleItem('Open a workspace first', '', 'folder') }];
     const roots = await Promise.all(folders().map(async folder => {
       const repo = this.model.repoFor(folder);
       const count = this.model.changeCount(folder);
       const head = repo?.state.HEAD;
-      const branch = head?.name || (vscode.workspace.isTrusted ? '未发现 Git 仓库' : 'Git 暂不可用');
+      const branch = head?.name || (vscode.workspace.isTrusted ? 'No Git repository found' : 'Git unavailable');
       const sync = [head?.ahead ? `↑${head.ahead}` : '', head?.behind ? `↓${head.behind}` : ''].filter(Boolean).join(' ');
       const active = this.model.active();
       const scope = active ? ` · ${MODE_TEXT[this.model.scope(active, folder).mode]}` : '';
-      const status = repo ? (count ? `${count} 项改动` : '干净') : '状态不可用';
+      const status = repo ? (count ? `${count} changes` : 'Clean') : 'Status unavailable';
       const item = simpleItem(shortName(folder), `${branch} · ${status}${sync ? ` · ${sync}` : ''}${scope}`, repo ? 'repo' : 'warning');
       const appearance = this.model.appearance(folder);
       if (appearance?.kind === 'image') item.iconPath = vscode.Uri.parse(appearance.value);
       else if (appearance?.kind === 'emoji') item.label = `${appearance.value} ${shortName(folder)}`;
       else if (appearance?.kind === 'icon') item.iconPath = new vscode.ThemeIcon(appearance.value.slice(1));
       item.contextValue = 'awRepository';
-      item.tooltip = `${folder.uri.fsPath}\n分支：${branch}\n任务范围：${scope || '无任务'}`;
-      item.command = { command: 'agentWorkspace.openFolder', title: '打开文件夹', arguments: [folder] };
+      item.tooltip = `${folder.uri.fsPath}\nBranch: ${branch}\nTask scope: ${scope || 'No task'}`;
+      item.command = { command: 'agentWorkspace.openFolder', title: 'Open Folder', arguments: [folder] };
       return { item, folder };
     }));
     if (!vscode.workspace.isTrusted) {
-      const item = simpleItem('受限模式：Git 状态不可用', '信任工作区后可查看分支和改动', 'lock');
-      item.tooltip = 'VS Code 在 Restricted Mode 下未提供 Git 源代码管理。是否信任工作区由你在 VS Code 中决定。';
+      const item = simpleItem('Restricted Mode: Git status unavailable', 'Trust the workspace to see branches and changes', 'lock');
+      item.tooltip = 'VS Code does not provide Git source control in Restricted Mode. You can choose whether to trust this workspace in VS Code.';
       return [{ item }, ...roots];
     }
     return roots;
@@ -607,39 +607,39 @@ class TasksProvider {
   async getChildren(node) {
     const task = this.model.active();
     if (!task) return [
-      { item: Object.assign(simpleItem('新建任务', '填写标题、内容和仓库范围', 'add'), { command: { command: 'agentWorkspace.createTask', title: '新建任务' } }) },
-      { item: Object.assign(simpleItem('使用说明', '查看完整操作步骤', 'book'), { command: { command: 'agentWorkspace.openGuide', title: '打开使用说明' } }) }
+      { item: Object.assign(simpleItem('New Task', 'Enter a title, content, and repository scope', 'add'), { command: { command: 'agentWorkspace.createTask', title: 'New Task' } }) },
+      { item: Object.assign(simpleItem('Guide', 'View the full instructions', 'book'), { command: { command: 'agentWorkspace.openGuide', title: 'Open Guide' } }) }
     ];
     if (!node) {
       const active = simpleItem(task.title, contentSummary(task), 'target');
-      active.command = { command: 'agentWorkspace.editTask', title: '编辑任务' };
+      active.command = { command: 'agentWorkspace.editTask', title: 'Edit Task' };
       return [
         { kind: 'header', item: active },
-        { kind: 'execute', item: Object.assign(simpleItem('执行', '交给 Copilot Agent', 'play'), { command: { command: 'agentWorkspace.executeTask', title: '执行任务' } }) },
-        { kind: 'executions', item: simpleItem('执行记录', `${(task.executions || []).length} 次`, 'history', true) },
-        { kind: 'scopes', item: simpleItem('仓库范围', '', 'folder-library', true) },
-        { kind: 'conventions', item: simpleItem('项目约定', `${task.conventions.length} 个文件`, 'book', true) },
-        { kind: 'changes', item: simpleItem('Git 变更审阅', '', 'git-compare', true) },
-        { kind: 'actions', item: simpleItem('操作', '', 'tools', true) }
+        { kind: 'execute', item: Object.assign(simpleItem('Execute', 'Run with Copilot Agent', 'play'), { command: { command: 'agentWorkspace.executeTask', title: 'Execute Task' } }) },
+        { kind: 'executions', item: simpleItem('Execution Records', `${(task.executions || []).length} runs`, 'history', true) },
+        { kind: 'scopes', item: simpleItem('Repository scope', '', 'folder-library', true) },
+        { kind: 'conventions', item: simpleItem('Project instructions', `${task.conventions.length} files`, 'book', true) },
+        { kind: 'changes', item: simpleItem('Git Change Review', '', 'git-compare', true) },
+        { kind: 'actions', item: simpleItem('Actions', '', 'tools', true) }
       ];
     }
     if (node.kind === 'executions') {
-      if (!task.executions?.length) return [{ item: simpleItem('暂无执行记录', '点击“执行”后开始记录', 'info') }];
+      if (!task.executions?.length) return [{ item: simpleItem('No execution records', 'Click Execute to start recording', 'info') }];
       return task.executions.map(execution => {
         const when = new Date(execution.startedAt).toLocaleString();
-        const item = simpleItem(when, `${execution.endedAt ? '已结束观察' : '观察中'} · ${observedCount(execution)} 个文件`, 'history', true);
+        const item = simpleItem(when, `${execution.endedAt ? 'Tracking ended' : 'Tracking'} · ${observedCount(execution)} files`, 'history', true);
         item.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
-        item.tooltip = `${execution.title}\n${when}\n文件改动仅是执行后观察结果，不能证明均由 Copilot 产生。`;
+        item.tooltip = `${execution.title}\n${when}\nFile changes were observed after execution; they may not all be from Copilot.`;
         return { kind: 'execution', item, execution };
       });
     }
     if (node.kind === 'execution') {
       const execution = node.execution;
       const entries = [
-        { item: Object.assign(simpleItem('查看任务内容快照', contentSummary(execution), 'file-text'), { command: { command: 'agentWorkspace.showExecutionDetails', title: '查看执行记录', arguments: [execution] } }) },
-        { item: Object.assign(simpleItem('打开 Copilot 会话列表', '按标题和时间查找', 'comment-discussion'), { command: { command: 'agentWorkspace.openCopilotSessions', title: '打开 Copilot 会话列表', arguments: [execution] } }) }
+        { item: Object.assign(simpleItem('View Task Snapshot', contentSummary(execution), 'file-text'), { command: { command: 'agentWorkspace.showExecutionDetails', title: 'View Execution Record', arguments: [execution] } }) },
+        { item: Object.assign(simpleItem('Open Copilot Sessions', 'Find by title and time', 'comment-discussion'), { command: { command: 'agentWorkspace.openCopilotSessions', title: 'Open Copilot Sessions', arguments: [execution] } }) }
       ];
-      if (!execution.endedAt) entries.push({ item: Object.assign(simpleItem('停止记录改动', '不会停止 Copilot', 'stop-circle'), { command: { command: 'agentWorkspace.stopExecutionTracking', title: '停止记录改动', arguments: [execution] } }) });
+      if (!execution.endedAt) entries.push({ item: Object.assign(simpleItem('Stop Tracking Changes', 'Copilot will continue running', 'stop-circle'), { command: { command: 'agentWorkspace.stopExecutionTracking', title: 'Stop Tracking Changes', arguments: [execution] } }) });
       const observations = Object.values(execution.observed || {});
       for (const folder of folders()) {
         const rootObservations = observations.filter(observation => observation.root === rootKey(folder));
@@ -647,23 +647,23 @@ class TasksProvider {
         const head = execution.heads?.[rootKey(folder)];
         const headChanged = !!baseline && !!head && (baseline.branch !== head.branch || baseline.commit !== head.commit);
         if (!rootObservations.length && !headChanged) continue;
-        const item = simpleItem(shortName(folder), `${rootObservations.length} 个文件${headChanged ? ' · HEAD 已变化' : ''}`, headChanged ? 'warning' : 'repo', true);
+        const item = simpleItem(shortName(folder), `${rootObservations.length} files${headChanged ? ' · HEAD changed' : ''}`, headChanged ? 'warning' : 'repo', true);
         entries.push({ kind: 'executionRoot', item, folder, observations: rootObservations });
       }
-      if (!observations.length) entries.push({ item: simpleItem('尚未观察到文件改动', 'Git 状态变化后更新', 'info') });
+      if (!observations.length) entries.push({ item: simpleItem('No file changes observed yet', 'Updates when Git status changes', 'info') });
       return entries;
     }
     if (node.kind === 'executionRoot') return node.observations.map(observation => {
-      const kind = { new: '执行后新增', uncertain: '归属不确定', invalid: '基线失效' }[observation.kind] || '执行后观察到';
-      const item = simpleItem(observation.key, `${kind}${observation.present ? '' : ' · 当前无 Git 改动'}${observation.warning ? ' · 范围提示' : ''}`, observation.warning ? 'warning' : 'diff');
-      item.tooltip = `${observation.warning || '执行后观察到的改动；无法确定是否由 Copilot 产生。'}\n最后观察：${new Date(observation.lastSeenAt).toLocaleString()}`;
-      item.command = { command: 'agentWorkspace.openObservedChange', title: '打开记录中的文件', arguments: [observation] };
+      const kind = { new: 'New after execution', uncertain: 'Origin uncertain', invalid: 'Baseline invalid' }[observation.kind] || 'Observed after execution';
+      const item = simpleItem(observation.key, `${kind}${observation.present ? '' : ' · No current Git changes'}${observation.warning ? ' · Scope warning' : ''}`, observation.warning ? 'warning' : 'diff');
+      item.tooltip = `${observation.warning || 'Change observed after execution; its origin cannot be attributed to Copilot.'}\nLast seen: ${new Date(observation.lastSeenAt).toLocaleString()}`;
+      item.command = { command: 'agentWorkspace.openObservedChange', title: 'Open Recorded File', arguments: [observation] };
       return { item };
     });
     if (node.kind === 'scopes') return folders().map(folder => {
       const scope = this.model.scope(task, folder);
-      const item = simpleItem(shortName(folder), `${MODE_TEXT[scope.mode]}${scope.directories?.length ? ` · ${scope.directories.length} 个目录` : ''}`, scope.mode === 'write' ? 'edit' : scope.mode === 'read' ? 'eye' : 'circle-slash', !!scope.directories?.length);
-      item.command = { command: 'agentWorkspace.setScope', title: '设置范围', arguments: [folder] };
+      const item = simpleItem(shortName(folder), `${MODE_TEXT[scope.mode]}${scope.directories?.length ? ` · ${scope.directories.length} directories` : ''}`, scope.mode === 'write' ? 'edit' : scope.mode === 'read' ? 'eye' : 'circle-slash', !!scope.directories?.length);
+      item.command = { command: 'agentWorkspace.setScope', title: 'Set Scope', arguments: [folder] };
       return { kind: 'scope', item, folder };
     });
     if (node.kind === 'scope') return node.folder && this.model.scope(task, node.folder).directories.map(directory => {
@@ -675,10 +675,10 @@ class TasksProvider {
       const entries = task.conventions.map(key => {
         const uri = vscode.Uri.parse(key);
         const item = simpleItem(vscode.workspace.asRelativePath(uri), '', 'file');
-        item.command = { command: 'vscode.open', title: '打开约定', arguments: [uri] };
+        item.command = { command: 'vscode.open', title: 'Open Instructions', arguments: [uri] };
         return { item };
       });
-      entries.push({ item: Object.assign(simpleItem('选择 AGENTS.md', '', 'add'), { command: { command: 'agentWorkspace.collectConventions', title: '选择项目约定' } }) });
+      entries.push({ item: Object.assign(simpleItem('Select AGENTS.md', '', 'add'), { command: { command: 'agentWorkspace.collectConventions', title: 'Select Project Instructions' } }) });
       return entries;
     }
     if (node.kind === 'changes') return Promise.all(folders().map(async folder => {
@@ -687,30 +687,30 @@ class TasksProvider {
       const baseline = task.baseline?.[rootKey(folder)];
       const current = this.model.head(repo);
       const invalid = baseline && (baseline.commit !== current.commit || baseline.branch !== current.branch);
-      const item = simpleItem(shortName(folder), repo ? `${changes.length} 项${invalid ? ' · 基线失效' : ''}` : 'Git 状态不可用', invalid || !repo ? 'warning' : 'repo', true);
+      const item = simpleItem(shortName(folder), repo ? `${changes.length} changes${invalid ? ' · Baseline invalid' : ''}` : 'Git status unavailable', invalid || !repo ? 'warning' : 'repo', true);
       return { kind: 'changeRoot', item, folder, changes, baseline, invalid, unavailable: !repo };
     }));
     if (node.kind === 'changeRoot') {
-      if (node.unavailable) return [{ item: simpleItem('Git 状态不可用', '请检查工作区信任与内置 Git 扩展', 'lock') }];
-      if (!node.changes.length) return [{ item: simpleItem('无改动', '', 'check') }];
+      if (node.unavailable) return [{ item: simpleItem('Git status unavailable', 'Check workspace trust and the built-in Git extension', 'lock') }];
+      if (!node.changes.length) return [{ item: simpleItem('No changes', '', 'check') }];
       return node.changes.map(change => {
         const result = classifyChange(change, node.baseline, this.model.scope(task, node.folder), node.folder.uri.fsPath, node.invalid);
-        const kind = { new: '新改动', existing: '任务前已有', uncertain: '归属不确定', invalid: '基线失效' }[result.kind];
-        const item = simpleItem(change.key, `${kind}${result.warning ? ' · 超出范围或需重建基线' : ''}`, result.warning ? 'warning' : 'diff');
-        item.tooltip = `${kind}\n${result.warning || ''}\nGit 组：${change.group}`;
+        const kind = { new: 'New change', existing: 'Existing before task', uncertain: 'Origin uncertain', invalid: 'Baseline invalid' }[result.kind];
+        const item = simpleItem(change.key, `${kind}${result.warning ? ' · Outside scope or baseline needs rebuilding' : ''}`, result.warning ? 'warning' : 'diff');
+        item.tooltip = `${kind}\n${result.warning || ''}\nGit group: ${change.group}`;
         item.contextValue = 'awChange';
-        item.command = { command: 'agentWorkspace.openChange', title: '打开差异', arguments: [change] };
+        item.command = { command: 'agentWorkspace.openChange', title: 'Open Diff', arguments: [change] };
         return { kind: 'change', item, change };
       });
     }
     if (node.kind === 'actions') return [
-      ['编辑任务', 'agentWorkspace.editTask', 'edit'],
-      ['添加范围目录', 'agentWorkspace.addDirectory', 'folder-opened'],
-      ['复制上下文包', 'agentWorkspace.copyContext', 'copy'],
-      ['导出任务 JSON', 'agentWorkspace.exportJson', 'export'],
-      ['切换任务', 'agentWorkspace.selectTask', 'list-selection'],
-      ['重建 Git 基线', 'agentWorkspace.rebaseline', 'history'],
-      ['删除当前任务', 'agentWorkspace.deleteTask', 'trash']
+      ['Edit Task', 'agentWorkspace.editTask', 'edit'],
+      ['Add Scope Directory', 'agentWorkspace.addDirectory', 'folder-opened'],
+      ['Copy Context', 'agentWorkspace.copyContext', 'copy'],
+      ['Export Task JSON', 'agentWorkspace.exportJson', 'export'],
+      ['Switch Task', 'agentWorkspace.selectTask', 'list-selection'],
+      ['Rebuild Git Baseline', 'agentWorkspace.rebaseline', 'history'],
+      ['Delete Current Task', 'agentWorkspace.deleteTask', 'trash']
     ].map(([label, command, icon]) => ({ item: Object.assign(simpleItem(label, '', icon), { command: { command, title: label } }) }));
     return [];
   }
@@ -721,11 +721,11 @@ class PresetsProvider {
   getTreeItem(node) { return node.item; }
   getChildren(node) {
     if (node) return [];
-    if (!this.model.presets.length) return [{ item: simpleItem('暂无预设', '从当前任务保存', 'bookmark') }];
+    if (!this.model.presets.length) return [{ item: simpleItem('No presets', 'Save from the current task', 'bookmark') }];
     return this.model.presets.map(preset => {
       const item = simpleItem(preset.name, contentSummary(preset), 'bookmark');
       item.contextValue = 'awPreset';
-      item.command = { command: 'agentWorkspace.applyPreset', title: '使用预设', arguments: [preset] };
+      item.command = { command: 'agentWorkspace.applyPreset', title: 'Use Preset', arguments: [preset] };
       return { item, preset };
     });
   }

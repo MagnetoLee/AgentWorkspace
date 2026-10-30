@@ -1,7 +1,7 @@
 'use strict';
 
 function copilotAgentOptions(query) {
-  if (!query || !query.trim()) throw new Error('任务内容为空');
+  if (!query || !query.trim()) throw new Error('Task content is empty');
   return { query, mode: 'agent', modelSelector: { vendor: 'copilot' }, isPartialQuery: false };
 }
 

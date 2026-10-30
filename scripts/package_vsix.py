@@ -44,7 +44,7 @@ content_types = '''<?xml version="1.0" encoding="utf-8"?>
 </Types>
 '''
 
-files = ["package.json", "README.md", "src/extension.js", "src/rootIcons.js", "src/core.js", "src/taskForm.js", "src/handoff.js", "src/executionHistory.js", "media/activity.svg", "media/logo-128.png", "media/theme/base.json", "media/theme/current.json", "media/theme/VSCODE_LICENSE.txt"]
+files = ["package.json", "README.md", "LICENSE", "src/extension.js", "src/rootIcons.js", "src/core.js", "src/taskForm.js", "src/handoff.js", "src/executionHistory.js", "media/activity.svg", "media/logo-128.png", "media/theme/base.json", "media/theme/current.json", "media/theme/VSCODE_LICENSE.txt"]
 files += [str(path.relative_to(ROOT)) for path in (ROOT / "media/theme/images").rglob("*") if path.is_file() and "custom" not in path.parts]
 with ZipFile(vsix, "w", ZIP_DEFLATED) as archive:
     archive.writestr("[Content_Types].xml", content_types)
