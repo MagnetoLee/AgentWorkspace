@@ -19,6 +19,7 @@ manifest = f'''<?xml version="1.0" encoding="utf-8"?>
     <DisplayName>{escape(package['displayName'])}</DisplayName>
     <Description xml:space="preserve">{escape(package['description'])}</Description>
     <Categories>Other</Categories>
+    <GalleryFlags>Public</GalleryFlags>
     <Properties>
       <Property Id="Microsoft.VisualStudio.Code.Engine" Value="{escape(package['engines']['vscode'])}" />
     </Properties>

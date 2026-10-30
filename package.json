@@ -2,7 +2,7 @@
   "name": "agent-workspace",
   "displayName": "Agent Workspace",
   "description": "Scope AI coding tasks across multiple Git repositories and review the results in VS Code.",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "publisher": "agentworkspace",
   "repository": { "type": "git", "url": "https://github.com/lizhaoting/AgentWorkspace.git" },
   "bugs": { "url": "https://github.com/lizhaoting/AgentWorkspace/issues" },
